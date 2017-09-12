@@ -1318,30 +1318,30 @@
 ;;;              language
 
 (def user-name->query-rec-name
-  {"select_catalogs" catalog-query
-   "select_edges" edges-query
-   "select_environments" environments-query
-   "select_producers" producers-query
-   "select_packages" packages-query
-   "select_package_inventory" package-inventory-query
-   "select_events" report-events-query
-   "select_facts" facts-query
-   "select_factsets" factsets-query
-   "select_fact_contents" fact-contents-query
-   "select_fact_paths" fact-paths-query
-   "select_nodes" nodes-query
-   "select_inactive_nodes" inactive-nodes-query
-   "select_latest_report" latest-report-query
-   "select_params" resource-params-query
-   "select_reports" reports-query
-   "select_inventory" inventory-query
-   "select_resources" resources-query})
+  (atom {"select_catalogs" catalog-query
+         "select_edges" edges-query
+         "select_environments" environments-query
+         "select_producers" producers-query
+         "select_packages" packages-query
+         "select_package_inventory" package-inventory-query
+         "select_events" report-events-query
+         "select_facts" facts-query
+         "select_factsets" factsets-query
+         "select_fact_contents" fact-contents-query
+         "select_fact_paths" fact-paths-query
+         "select_nodes" nodes-query
+         "select_inactive_nodes" inactive-nodes-query
+         "select_latest_report" latest-report-query
+         "select_params" resource-params-query
+         "select_reports" reports-query
+         "select_inventory" inventory-query
+         "select_resources" resources-query}))
 
 (defn user-query->logical-obj
   "Keypairs of the stringified subquery keyword (found in user defined queries) to the
    appropriate plan node"
   [subquery]
-  (-> (get user-name->query-rec-name subquery)
+  (-> (get @user-name->query-rec-name subquery)
       (assoc :subquery? true)))
 
 (def binary-operators
@@ -1593,7 +1593,7 @@
 (defn subquery-expression?
   "Returns true if expr is a subquery expression"
   [expr]
-  (contains? (ks/keyset user-name->query-rec-name)
+  (contains? (ks/keyset @user-name->query-rec-name)
              (first expr)))
 
 (defn create-extract-node*
@@ -1968,7 +1968,7 @@
                    :cut true})
 
                 [["extract" column
-                  [(subquery-name :guard (set (keys user-name->query-rec-name))) subquery-expression]]]
+                  [(subquery-name :guard (set (keys @user-name->query-rec-name))) subquery-expression]]]
                 (let [subquery-expr (push-down-context (user-query->logical-obj subquery-name) subquery-expression)
                       nested-qc (:query-context (meta subquery-expr))
                       column-validation-message (validate-query-operation-fields
@@ -1992,7 +1992,7 @@
 
                 [["extract" column [subquery-name :guard (complement #{"not" "group_by" "or" "and"}) _]]]
                 (let [underscored-subquery-name (utils/dashes->underscores subquery-name)
-                      error (if (contains? (set (keys user-name->query-rec-name)) underscored-subquery-name)
+                      error (if (contains? (set (keys @user-name->query-rec-name)) underscored-subquery-name)
                               (tru "Unsupported subquery `{0}` - did you mean `{1}`?" subquery-name underscored-subquery-name)
                               (tru "Unsupported subquery `{0}`" subquery-name))]
                   {:node node
@@ -2081,7 +2081,7 @@
   (or (contains? #{"from" "in" "extract" "subquery" "and"
                    "or" "not" "function" "group_by" "null?"} operator)
       (contains? binary-operators operator)
-      (contains? (ks/keyset user-name->query-rec-name) operator)))
+      (contains? (ks/keyset @user-name->query-rec-name) operator)))
 
 (defn ops-to-lower
   "Lower cases operators (such as and/or)."
